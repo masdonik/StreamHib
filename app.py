@@ -16,6 +16,35 @@ import psutil  # Untuk mendapatkan informasi sistem
 app = Flask(__name__)
 app.secret_key = "supersecretkey12345"  # Untuk sesi autentikasi
 
+# Variabel global untuk menyimpan data jaringan sebelumnya
+prev_net = psutil.net_io_counters()
+prev_time = time.time()
+
+def get_network_speed():
+    global prev_net, prev_time
+    # Ambil data jaringan saat ini
+    current_net = psutil.net_io_counters()
+    current_time = time.time()
+    
+    # Hitung selisih waktu
+    time_diff = current_time - prev_time
+    if time_diff == 0:
+        time_diff = 1  # Hindari pembagian dengan nol
+    
+    # Hitung kecepatan (bytes per detik)
+    upload_speed = (current_net.bytes_sent - prev_net.bytes_sent) / time_diff
+    download_speed = (current_net.bytes_recv - prev_net.bytes_recv) / time_diff
+    
+    # Konversi ke Mbps
+    upload_speed_mbps = (upload_speed * 8) / 1_000_000  # Bytes ke Mbps
+    download_speed_mbps = (download_speed * 8) / 1_000_000  # Bytes ke Mbps
+    
+    # Update data sebelumnya
+    prev_net = current_net
+    prev_time = current_time
+    
+    return upload_speed_mbps, download_speed_mbps
+
 # Setup logging
 logging.basicConfig(level=logging.DEBUG, filename='streamhib.log', format='%(asctime)s %(levelname)s:%(message)s')
 logger = logging.getLogger(__name__)
@@ -331,10 +360,13 @@ def system_usage():
     memory_usage = memory.percent
     disk = psutil.disk_usage('/')
     disk_usage = disk.percent
+    upload_speed, download_speed = get_network_speed()
     return jsonify({
         "cpu": round(cpu_usage, 1),
         "memory": round(memory_usage, 1),
-        "disk": round(disk_usage, 1)
+        "disk": round(disk_usage, 1),
+        "upload": upload_speed,
+        "download": download_speed
     })
 
 @app.route('/set_api_key', methods=['POST'])

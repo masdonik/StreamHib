@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StreamHib</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen">
+    <div class="container mx-auto p-4 md:p-6">
+        <!-- Header -->
+        <header class="bg-gray-800 rounded-lg shadow-lg p-4 mb-4">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <h1 class="text-3xl font-bold mb-4 md:mb-0">StreamHib</h1>
+                <div class="flex flex-wrap gap-4 text-sm">
+                    <div class="bg-gray-700 px-4 py-2 rounded-lg">
+                        <span class="font-semibold">CPU:</span> <span id="cpu-usage">0%</span>
+                    </div>
+                    <div class="bg-gray-700 px-4 py-2 rounded-lg">
+                        <span class="font-semibold">Memory:</span> <span id="memory-usage">0%</span>
+                    </div>
+                    <div class="bg-gray-700 px-4 py-2 rounded-lg">
+                        <span class="font-semibold">Disk:</span> <span id="disk-usage">0%</span>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="openSettings()" class="bg-blue-600 px-4 py-2 rounded-lg hover:bg-blue-700 transition duration-300">Settings</button>
+                        <button onclick="openHelp()" class="bg-blue-600 px-4 py-2 rounded-lg hover:bg-blue-700 transition duration-300">Help</button>
+                        <a href="/logout" class="bg-red-600 px-4 py-2 rounded-lg hover:bg-red-700 transition duration-300">Logout</a>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Stats -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+            <div class="bg-green-600 p-4 rounded-lg shadow-lg text-center">
+                <div class="text-lg font-semibold">{{ stats.live }} LIVE</div>
+            </div>
+            <div class="bg-yellow-600 p-4 rounded-lg shadow-lg text-center">
+                <div class="text-lg font-semibold">{{ stats.scheduled }} Dijadwal</div>
+            </div>
+            <div class="bg-red-600 p-4 rounded-lg shadow-lg text-center">
+                <div class="text-lg font-semibold">{{ stats.inactive }} Nonaktif</div>
+            </div>
+        </div>
+
+        <!-- Modal Settings -->
+        <div id="settingsModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+            <div class="bg-gray-800 p-6 rounded-lg shadow-lg w-full max-w-md">
+                <h3 class="text-xl font-bold mb-4">Settings</h3>
+                <label for="api_key" class="block text-gray-300 mb-2">Google Drive API Key</label>
+                <input type="text" id="api_key" placeholder="Enter API Key"
+                    class="w-full p-3 bg-gray-700 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4">
+                <label for="telegram_token" class="block text-gray-300 mb-2">Telegram Bot Token</label>
+                <input type="text" id="telegram_token" placeholder="Enter Telegram Bot Token"
+                    class="w-full p-3 bg-gray-700 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4">
+                <label for="telegram_chat_id" class="block text-gray-300 mb-2">Telegram Chat ID</label>
+                <input type="text" id="telegram_chat_id" placeholder="Enter Telegram Chat ID"
+                    class="w-full p-3 bg-gray-700 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4">
+                <div class="flex gap-2">
+                    <button onclick="saveSettings()"
+                        class="bg-blue-600 px-4 py-2 rounded-lg hover:bg-blue-700 transition duration-300">Save</button>
+                    <button onclick="closeSettings()"
+                        class="bg-gray-600 px-4 py-2 rounded-lg hover:bg-gray-500 transition duration-300">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal Help -->
+        <div id="helpModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+            <div class="bg-gray-800 p-6 rounded-lg shadow-lg w-full max-w-2xl max-h-[80vh] overflow-y-auto">
+                <h3 class="text-xl font-bold mb-4">User Guide</h3>
+                <p class="mb-4"><strong>1. Download Video dari GDrive</strong><br>
+                   - Masukkan ID file atau URL dari Google Drive (contoh: <code>https://drive.google.com/file/d/ABC123/view</code>).<br>
+                   - Pastikan file bersifat publik ("Anyone with the link").<br>
+                   - Klik "Download" untuk mengunduh video ke folder lokal.</p>
+                <p class="mb-4"><strong>2. Manager Video</strong><br>
+                   - Pilih video dari daftar untuk mengganti nama atau menghapusnya.<br>
+                   - Gunakan tombol "Rename" untuk mengganti nama file, atau "Hapus" untuk menghapus file.</p>
+                <p class="mb-4"><strong>3. Mulai Live (YT/FB)</strong><br>
+                   - Masukkan nama sesi (opsional), pilih video, platform (YouTube/Facebook), dan masukkan stream key.<br>
+                   - Stream key dapat diperoleh dari pengaturan live streaming di platform (YouTube Studio atau Facebook Live Producer).<br>
+                   - Klik "Mulai Live" untuk memulai streaming.</p>
+                <p class="mb-4"><strong>4. Sesi Live yang Aktif</strong><br>
+                   - Menampilkan sesi live yang sedang berjalan.<br>
+                   - Klik "Stop" untuk menghentikan streaming.</p>
+                <p class="mb-4"><strong>5. Jadwalkan Live Streaming</strong><br>
+                   - Isi detail jadwal (nama sesi, video, platform, stream key, tanggal, waktu, durasi).<br>
+                   - Klik "Jadwalkan" untuk menambahkan ke daftar jadwal. Streaming akan dimulai otomatis sesuai jadwal.</p>
+                <p class="mb-4"><strong>6. List Jadwal Live Streaming</strong><br>
+                   - Menampilkan daftar jadwal yang telah dibuat.<br>
+                   - Klik "Gagalkan" untuk membatalkan jadwal.</p>
+                <p class="mb-4"><strong>7. Sesi Live Tidak Aktif</strong><br>
+                   - Menampilkan sesi yang telah dihentikan.<br>
+                   - Klik "Livekan Lagi" untuk memulai ulang sesi, atau "Hapus" untuk menghapus sesi dari daftar.</p>
+                <p class="mb-4"><strong>Settings</strong><br>
+                   - Masukkan Google Drive API Key untuk mengunduh file.<br>
+                   - Masukkan Telegram Bot Token dan Chat ID untuk menerima notifikasi.<br>
+                   - Untuk membuat bot Telegram, buat bot melalui BotFather (@BotFather) di Telegram, lalu salin token-nya. Chat ID dapat diperoleh dengan mengirim pesan ke bot dan menggunakan API seperti <code>https://api.telegram.org/bot&lt;token&gt;/getUpdates</code>.</p>
+                <button onclick="closeHelp()"
+                    class="bg-gray-600 px-4 py-2 rounded-lg hover:bg-gray-500 transition duration-300">Close</button>
+            </div>
+        </div>
+
+        <!-- 1. Download Video dari GDrive -->
+        <div class="bg-gray-800 p-6 rounded-lg shadow-lg mb-6 fade-in">
+            <h3 class="text-xl font-semibold mb-4">1. Download Video dari GDrive</h3>
+            <label for="gdrive_url" class="block text-gray-300 mb-2">Masukkan ID/URL</label>
+            <input type="text" id="gdrive_url" placeholder="Masukkan ID/URL"
+                class="w-full p-3 bg-gray-700 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4">
+            <button onclick="downloadVideo()"
+                class="bg-blue-600 px-4 py-2 rounded-lg hover:bg-blue-700 transition duration-300">Download</button>
+            <progress id="download_progress" value="0" max="100" class="w-full h-4 mt-4 rounded"></progress>
+            <div class="text-sm text-gray-400 mt-2" id="download_info"></div>
+        </div>
+
+        <!-- 2. Manager Video -->
+        <div class="bg-gray-800 p-6 rounded-lg shadow-lg mb-6 fade-in">
+            <h3 class="text-xl font-semibold mb-4">2. Manager Video</h3>
+            <label for="video_list" class="block text-gray-300 mb-2">Pilih Video</label>
+            <select id="video_list" class="w-full p-3 bg-gray-700 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4">
+                {% for video in videos %}
+                    <option value="{{ video }}">{{ video }}</option>
+                {% endfor %}
+            </select>
+            <div class="flex gap-2">
+                <button onclick="renameVideo()"
+                    class="bg-yellow-600 px-4 py-2 rounded-lg hover:bg-yellow-700 transition duration-300">Rename</button>
+                <button onclick="deleteVideo()"
+                    class="bg-red-600 px-4 py-2 rounded-lg hover:bg-red-700 transition duration-300">Hapus</button>
+            </div>
+            <div class="text-sm text-gray-400 mt-4">Jumlah Video: {{ videos|length }}</div>
+        </div>
+
+        <!-- 3. Mulai Live (YT/FB) -->
+        <div class="bg-gray-800 p-6 rounded-lg shadow-lg mb-6 fade-in">
+            <h3 class="text-xl font-semibold mb-4">3. Mulai Live (YT/FB)</h3>
+            <label for="live_session_name" class="block text-gray-300 mb-2">Nama Sesi</label>
+            <input type="text" id="live_session_name" placeholder="Masukkan Nama Sesi"
+                class="w-full p-3 bg-gray-700 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4">
+            <label for="video_select" class="block text-gray-300 mb-2">Pilih Video</label>
+            <select id="video_select" class="w-full p-3 bg-gray-700 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4">
+                {% for video in videos %}
+                    <option value="{{ video }}">{{ video }}</option>
+                {% endfor %}
+            </select>
+            <label for="platform_select" class="block text-gray-300 mb-2">Platform</label>
+            <select id="platform_select" class="w-full p-3 bg-gray-700 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4">
+                <option value="YOUTUBE">YOUTUBE</option>
+                <option value="FACEBOOK">FACEBOOK</option>
+            </select>
+            <label for="stream_key" class="block text-gray-300 mb-2">Stream Key</label>
+            <input type="text" id="stream_key" placeholder="Masukkan Stream Key"
+                class="w-full p-3 bg-gray-700 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4">
+            <button onclick="startStream()"
+                class="bg-green-600 px-4 py-2 rounded-lg hover:bg-green-700 transition duration-300">Mulai Live</button>
+        </div>
+
+        <!-- 4. Sesi Live yang Aktif -->
+        <div class="bg-gray-800 p-6 rounded-lg shadow-lg mb-6 fade-in">
+            <h3 class="text-xl font-semibold mb-4">4. Sesi Live yang Aktif</h3>
+            {% if status.is_live %}
+                <label for="active_session" class="block text-gray-300 mb-2">Pilih Sesi</label>
+                <select id="active_session" class="w-full p-3 bg-gray-700 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4">
+                    <option value="{{ status.session_name }}">{{ status.session_name }}</option>
+                </select>
+                <button onclick="stopStream()"
+                    class="bg-red-600 px-4 py-2 rounded-lg hover:bg-red-700 transition duration-300">Stop</button>
+                <div class="text-sm text-gray-400 mt-4">Jumlah Live: {{ stats.live }}</div>
+            {% else %}
+                <p class="text-gray-400">Tidak ada sesi live aktif.</p>
+            {% endif %}
+        </div>
+
+        <!-- 5. Jadwalkan Live Streaming -->
+        <div class="bg-gray-800 p-6 rounded-lg shadow-lg mb-6 fade-in">
+            <h3 class="text-xl font-semibold mb-4">5. Jadwalkan Live Streaming</h3>
+            <label for="schedule_session_name" class="block text-gray-300 mb-2">Nama Sesi</label>
+            <input type="text" id="schedule_session_name" placeholder="Masukkan Nama Sesi"
+                class="w-full p-3 bg-gray-700 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4">
+            <label for="schedule_video" class="block text-gray-300 mb-2">Pilih Video</label>
+            <select id="schedule_video" class="w-full p-3 bg-gray-700 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4">
+                {% for video in videos %}
+                    <option value="{{ video }}">{{ video }}</option>
+                {% endfor %}
+            </select>
+            <label for="schedule_platform" class="block text-gray-300 mb-2">Platform</label>
+            <select id="schedule_platform" class="w-full p-3 bg-gray-700 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4">
+                <option value="YOUTUBE">YOUTUBE</option>
+                <option value="FACEBOOK">FACEBOOK</option>
+            </select>
+            <label for="stream_key_schedule" class="block text-gray-300 mb-2">Stream Key</label>
+            <input type="text" id="stream_key_schedule" placeholder="Masukkan Stream Key"
+                class="w-full p-3 bg-gray-700 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4">
+            <label for="schedule_date" class="block text-gray-300 mb-2">Tanggal</label>
+            <input type="date" id="schedule_date"
+                class="w-full p-3 bg-gray-700 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4">
+            <label for="schedule_time" class="block text-gray-300 mb-2">Waktu</label>
+            <input type="time" id="schedule_time"
+                class="w-full p-3 bg-gray-700 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4">
+            <label for="duration" class="block text-gray-300 mb-2">Durasi (jam)</label>
+            <input type="text" id="duration" placeholder="Durasi"
+                class="w-full p-3 bg-gray-700 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4">
+            <button onclick="scheduleStream()"
+                class="bg-purple-600 px-4 py-2 rounded-lg hover:bg-purple-700 transition duration-300">Jadwalkan</button>
+        </div>
+
+        <!-- 6. List Jadwal Live Streaming -->
+        <div class="bg-gray-800 p-6 rounded-lg shadow-lg mb-6 fade-in">
+            <h3 class="text-xl font-semibold mb-4">6. List Jadwal Live Streaming</h3>
+            {% if scheduled %}
+                <label for="schedule_list" class="block text-gray-300 mb-2">Pilih Jadwal</label>
+                <select id="schedule_list" class="w-full p-3 bg-gray-700 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4">
+                    {% for schedule in scheduled %}
+                        <option value="{{ schedule.session_name }}">{{ schedule.session_name }}</option>
+                    {% endfor %}
+                </select>
+                <button onclick="cancelSchedule()"
+                    class="bg-red-600 px-4 py-2 rounded-lg hover:bg-red-700 transition duration-300">Gagalkan</button>
+                <div class="text-sm text-gray-400 mt-4">Jumlah Jadwal: {{ scheduled|length }}</div>
+            {% else %}
+                <p class="text-gray-400">Tidak ada jadwal live streaming.</p>
+            {% endif %}
+        </div>
+
+        <!-- 7. Sesi Live Tidak Aktif -->
+        <div class="bg-gray-800 p-6 rounded-lg shadow-lg mb-6 fade-in">
+            <h3 class="text-xl font-semibold mb-4">7. Sesi Live Tidak Aktif</h3>
+            {% if inactive %}
+                <label for="inactive_session" class="block text-gray-300 mb-2">Pilih Sesi</label>
+                <select id="inactive_session" class="w-full p-3 bg-gray-700 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4">
+                    {% for session in inactive %}
+                        <option value="{{ session.session_name }}">{{ session.session_name }}</option>
+                    {% endfor %}
+                </select>
+                <div class="flex gap-2">
+                    <button onclick="restartSession()"
+                        class="bg-green-600 px-4 py-2 rounded-lg hover:bg-green-700 transition duration-300">Livekan Lagi</button>
+                    <button onclick="deleteSession()"
+                        class="bg-red-600 px-4 py-2 rounded-lg hover:bg-red-700 transition duration-300">Hapus</button>
+                </div>
+                <div class="text-sm text-gray-400 mt-4">Jumlah Tidak Aktif: {{ inactive|length }}</div>
+            {% else %}
+                <p class="text-gray-400">Tidak ada sesi live tidak aktif.</p>
+            {% endif %}
+        </div>
+
+        <footer class="text-center text-gray-400 text-sm mt-6">
+            <p>2025 StreamHib. All rights reserved.</p>
+        </footer>
+    </div>
+
+    <script>
+        // Update system usage
+        function updateSystemUsage() {
+            fetch('/system_usage')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('cpu-usage').innerText = `${data.cpu}%`;
+                    document.getElementById('memory-usage').innerText = `${data.memory}%`;
+                    document.getElementById('disk-usage').innerText = `${data.disk}%`;
+                })
+                .catch(error => console.error('Error fetching system usage:', error));
+        }
+        setInterval(updateSystemUsage, 5000); // Update setiap 5 detik
+        updateSystemUsage(); // Panggil saat halaman dimuat
+
+        function openSettings() {
+            document.getElementById('settingsModal').classList.remove('hidden');
+        }
+
+        function closeSettings() {
+            document.getElementById('settingsModal').classList.add('hidden');
+        }
+
+        function openHelp() {
+            document.getElementById('helpModal').classList.remove('hidden');
+        }
+
+        function closeHelp() {
+            document.getElementById('helpModal').classList.add('hidden');
+        }
+
+        function saveSettings() {
+            const apiKey = document.getElementById('api_key').value;
+            const telegramToken = document.getElementById('telegram_token').value;
+            const telegramChatId = document.getElementById('telegram_chat_id').value;
+            fetch('/set_api_key', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `api_key=${apiKey}&telegram_token=${telegramToken}&telegram_chat_id=${telegramChatId}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+                closeSettings();
+            });
+        }
+
+        function downloadVideo() {
+            const fileId = document.getElementById('gdrive_url').value;
+            if (!fileId) {
+                alert("Please enter a Google Drive file ID or URL");
+                return;
+            }
+            const progressBar = document.getElementById('download_progress');
+            const progressInfo = document.getElementById('download_info');
+            progressBar.value = 0;
+            progressInfo.innerText = 'Starting download...';
+
+            fetch('/download', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `file_id=${fileId}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+                // Mulai polling progres
+                const interval = setInterval(() => {
+                    fetch('/download_progress')
+                        .then(response => response.json())
+                        .then(data => {
+                            progressBar.value = data.progress;
+                            progressInfo.innerText = `Speed: ${data.speed.toFixed(2)} KB/s | ETA: ${data.eta} seconds`;
+                            if (!data.is_downloading) {
+                                clearInterval(interval);
+                                if (data.success) {
+                                    progressInfo.innerText = 'Download completed!';
+                                    setTimeout(() => location.reload(), 2000);
+                                } else {
+                                    progressInfo.innerText = 'Download failed!';
+                                    alert(data.message);
+                                }
+                            }
+                        })
+                        .catch(error => {
+                            clearInterval(interval);
+                            progressInfo.innerText = 'Error checking progress';
+                            alert("Error: " + error.message);
+                        });
+                }, 1000);
+            })
+            .catch(error => {
+                progressInfo.innerText = 'Error starting download';
+                alert("Error: " + error.message);
+            });
+        }
+
+        function renameVideo() {
+            const video = document.getElementById('video_list').value;
+            if (!video) {
+                alert("Please select a video");
+                return;
+            }
+            const newName = prompt("Enter new name:");
+            if (!newName) {
+                alert("New name cannot be empty");
+                return;
+            }
+            fetch('/rename_video', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `video=${video}&new_name=${newName}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+                location.reload();
+            });
+        }
+
+        function deleteVideo() {
+            const video = document.getElementById('video_list').value;
+            if (!video) {
+                alert("Please select a video");
+                return;
+            }
+            if (!confirm("Are you sure you want to delete this video?")) {
+                return;
+            }
+            fetch('/delete_video', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `video=${video}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+                location.reload();
+            });
+        }
+
+        function startStream() {
+            const sessionName = document.getElementById('live_session_name').value;
+            const video = document.getElementById('video_select').value;
+            const platform = document.getElementById('platform_select').value;
+            const streamKey = document.getElementById('stream_key').value;
+            if (!video || !streamKey) {
+                alert("Please fill in all required fields (Video, Stream Key)");
+                return;
+            }
+            fetch('/start_stream', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `video=${video}&session_name=${sessionName}&platform=${platform}&stream_key=${streamKey}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+                location.reload();
+            })
+            .catch(error => alert("Error: " + error.message));
+        }
+
+        function stopStream() {
+            fetch('/stop_stream', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+                location.reload();
+            })
+            .catch(error => alert("Error: " + error.message));
+        }
+
+        function scheduleStream() {
+            const sessionName = document.getElementById('schedule_session_name').value;
+            const video = document.getElementById('schedule_video').value;
+            const platform = document.getElementById('schedule_platform').value;
+            const streamKey = document.getElementById('stream_key_schedule').value;
+            const date = document.getElementById('schedule_date').value;
+            const time = document.getElementById('schedule_time').value;
+            const duration = document.getElementById('duration').value;
+            if (!video || !streamKey || !date || !time || !duration) {
+                alert("Please fill in all required fields (Video, Stream Key, Date, Time, Duration)");
+                return;
+            }
+            if (!sessionName) {
+                alert("Please enter a session name");
+                return;
+            }
+            if (isNaN(duration) || duration <= 0) {
+                alert("Duration must be a positive number");
+                return;
+            }
+            fetch('/schedule_stream', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `session_name=${sessionName}&video=${video}&platform=${platform}&stream_key=${streamKey}&date=${date}&time=${time}&duration=${duration}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+                location.reload();
+            })
+            .catch(error => alert("Error: " + error.message));
+        }
+
+        function cancelSchedule() {
+            const sessionName = document.getElementById('schedule_list').value;
+            if (!sessionName) {
+                alert("Please select a scheduled session");
+                return;
+            }
+            fetch('/cancel_schedule', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `session_name=${sessionName}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+                location.reload();
+            })
+            .catch(error => alert("Error: " + error.message));
+        }
+
+        function restartSession() {
+            const sessionName = document.getElementById('inactive_session').value;
+            if (!sessionName) {
+                alert("Please select an inactive session");
+                return;
+            }
+            fetch('/restart_session', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `session_name=${sessionName}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+                location.reload();
+            })
+            .catch(error => alert("Error: " + error.message));
+        }
+
+        function deleteSession() {
+            const sessionName = document.getElementById('inactive_session').value;
+            if (!sessionName) {
+                alert("Please select an inactive session");
+                return;
+            }
+            if (!confirm("Are you sure you want to delete this session?")) {
+                return;
+            }
+            fetch('/delete_session', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `session_name=${sessionName}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+                location.reload();
+            })
+            .catch(error => alert("Error: " + error.message));
+        }
+    </script>
+</body>
+</html>

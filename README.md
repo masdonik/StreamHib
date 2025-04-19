@@ -59,7 +59,6 @@ Jalankan aplikasi untuk memastikan semuanya berfungsi:
 gunicorn --bind 0.0.0.0:4545 --timeout 300 app:app
 ```
 - Buka browser dan akses `http://<IP_SERVER>:4545`.
-- Login dengan username: `admin` dan password: `pass12345`.
 
 ### 7. Atur Aplikasi untuk Berjalan Otomatis
 Agar aplikasi berjalan otomatis saat server reboot, gunakan `systemd`:

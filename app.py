@@ -253,7 +253,7 @@ def start_scheduled_stream(schedule):
         send_telegram_notification(f"Failed to start scheduled stream {schedule['session_name']}: Unsupported platform")
         return
 
-    ffmpeg_cmd = ['ffmpeg', '-re', '-i', video_path, '-c:v', 'copy', '-c:a', 'copy', '-f', 'flv', stream_url]
+    ffmpeg_cmd = ['/usr/bin/ffmpeg', '-stream_loop', '-1', '-re', '-i', video_path, '-c:v', 'copy', '-c:a', 'copy', '-f', 'flv', stream_url]
     process = subprocess.Popen(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     live_status.update({
         "is_live": True,
@@ -458,15 +458,7 @@ def start_stream():
     else:
         return jsonify({"message": "Unsupported platform"})
 
-    ffmpeg_cmd = [
-        'ffmpeg',
-        '-re',
-        '-i', video_path,
-        '-c:v', 'copy',
-        '-c:a', 'copy',
-        '-f', 'flv',
-        stream_url
-    ]
+    ffmpeg_cmd = ['/usr/bin/ffmpeg', '-stream_loop', '-1', '-re', '-i', video_path, '-c:v', 'copy', '-c:a', 'copy', '-f', 'flv', stream_url]
 
     try:
         process = subprocess.Popen(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -582,15 +574,7 @@ def restart_session():
     else:
         return jsonify({"message": "Unsupported platform"})
 
-    ffmpeg_cmd = [
-        'ffmpeg',
-        '-re',
-        '-i', video_path,
-        '-c:v', 'copy',
-        '-c:a', 'copy',
-        '-f', 'flv',
-        stream_url
-    ]
+    ffmpeg_cmd = ['/usr/bin/ffmpeg', '-stream_loop', '-1', '-re', '-i', video_path, '-c:v', 'copy', '-c:a', 'copy', '-f', 'flv', stream_url]
 
     try:
         process = subprocess.Popen(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
